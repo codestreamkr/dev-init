@@ -214,7 +214,7 @@ Codex와 Claude Code 기본 설정은 패키지 설치 후 실행한다.
 
 - Codex 설정 저장소: `https://github.com/codestreamkr/chatgpt-codex-init.git`
 - Claude Code 설정 저장소: `https://github.com/codestreamkr/claude-code-init.git`
-- Windows 실행 기준: `codex`, `claude` 명령 존재 여부 확인 후 미설치 상태에서만 실행
+- 실행 기준: `codex`, `claude` 명령 존재 여부 확인 후 미설치 상태에서만 실행
 - Windows 실행 위치: `$env:TEMP\codex-init`, `$env:TEMP\claude-init`
 - macOS 실행 위치: `/tmp/codex-init`, `/tmp/claude-init`
 
@@ -253,5 +253,5 @@ Windows PowerShell에서 아래 오류가 나면 TLS 연결 실패로 본다.
 
 ## 이력관리
 
-- 2026-05-19: Windows Codex와 Claude 설치 여부 확인 추가
+- 2026-05-19: macOS Codex와 Claude 설치 여부 확인 추가
 - 2026-05-19: 개발환경 자동화 최초 등록

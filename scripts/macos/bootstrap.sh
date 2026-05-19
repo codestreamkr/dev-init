@@ -105,6 +105,11 @@ run_brew_bundle() {
 }
 
 install_claude_cli() {
+  if command -v claude >/dev/null 2>&1; then
+    echo "Already installed: Claude CLI"
+    return
+  fi
+
   if [[ "$DRY_RUN" == "true" ]]; then
     echo "[dry-run] curl -kfsSL https://claude.ai/install.sh | bash"
     return
@@ -112,6 +117,27 @@ install_claude_cli() {
 
   echo "Installing Claude CLI with certificate bypass for this request..."
   curl -kfsSL https://claude.ai/install.sh | bash
+}
+
+run_ai_init_repository() {
+  local command_name="$1"
+  local repository="$2"
+  local destination="$3"
+
+  if command -v "$command_name" >/dev/null 2>&1; then
+    echo "Already initialized: $command_name"
+    return
+  fi
+
+  if [[ "$DRY_RUN" == "true" ]]; then
+    echo "[dry-run] git clone $repository $destination"
+    echo "[dry-run] bash $destination/install.sh"
+    return
+  fi
+
+  rm -rf "$destination"
+  git clone "$repository" "$destination"
+  bash "$destination/install.sh"
 }
 
 run_ai_init() {
@@ -122,21 +148,15 @@ run_ai_init() {
   local codex_dir="/tmp/codex-init"
   local claude_dir="/tmp/claude-init"
 
-  if [[ "$DRY_RUN" == "true" ]]; then
-    echo "[dry-run] git clone https://github.com/codestreamkr/chatgpt-codex-init.git $codex_dir"
-    echo "[dry-run] bash $codex_dir/install.sh"
-    echo "[dry-run] git clone https://github.com/codestreamkr/claude-code-init.git $claude_dir"
-    echo "[dry-run] bash $claude_dir/install.sh"
-    return
-  fi
+  run_ai_init_repository \
+    "codex" \
+    "https://github.com/codestreamkr/chatgpt-codex-init.git" \
+    "$codex_dir"
 
-  rm -rf "$codex_dir" "$claude_dir"
-
-  git clone https://github.com/codestreamkr/chatgpt-codex-init.git "$codex_dir"
-  bash "$codex_dir/install.sh"
-
-  git clone https://github.com/codestreamkr/claude-code-init.git "$claude_dir"
-  bash "$claude_dir/install.sh"
+  run_ai_init_repository \
+    "claude" \
+    "https://github.com/codestreamkr/claude-code-init.git" \
+    "$claude_dir"
 }
 
 main() {
