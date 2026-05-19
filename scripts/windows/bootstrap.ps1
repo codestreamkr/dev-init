@@ -104,13 +104,9 @@ function Test-WingetPackageInstalled {
         "--accept-source-agreements"
     )
 
-    Write-Host "Running: $Winget $($Arguments -join ' ')"
+    Write-Host "Checking installed package: $PackageId"
     $Output = & $Winget @Arguments 2>&1
     $ExitCode = $LASTEXITCODE
-
-    foreach ($Line in $Output) {
-        Write-Host $Line
-    }
 
     if ($ExitCode -ne 0) {
         return $false
