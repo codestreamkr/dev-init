@@ -207,20 +207,66 @@ function Write-WingetUpgradeNotice {
 
 function Install-ClaudeCli {
     if ($DryRun) {
-        Write-Host "[dry-run] Install Claude CLI with temporary certificate validation bypass, then restore callback."
+        Write-Host "[dry-run] Install Claude CLI with TLS 1.2 and temporary certificate validation bypass, then restore settings."
         return
     }
 
-    Write-Host "Installing Claude CLI with temporary certificate validation bypass..."
+    Write-Host "Installing Claude CLI with TLS 1.2 and temporary certificate validation bypass..."
 
-    $prev = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+    $PreviousSecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol
+    $PreviousCertificateCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
     [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
     try {
-        irm https://claude.ai/install.ps1 | iex
+        [System.Net.ServicePointManager]::SecurityProtocol = $PreviousSecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
+
+        $InstallUrls = @(
+            "https://claude.ai/install.ps1",
+            "https://downloads.claude.ai/claude-code-releases/bootstrap.ps1"
+        )
+
+        foreach ($Url in $InstallUrls) {
+            try {
+                Write-Host "Downloading Claude CLI installer: $Url"
+                $Installer = (New-Object System.Net.WebClient).DownloadString($Url)
+                Invoke-Expression $Installer
+                return
+            }
+            catch {
+                Write-Host "Claude CLI installer download failed: $Url"
+                Write-Host $_.Exception.Message
+            }
+        }
+
+        $Curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+
+        if ($Curl) {
+            $CurlPath = $Curl.Source
+
+            foreach ($Url in $InstallUrls) {
+                try {
+                    Write-Host "Downloading Claude CLI installer with curl.exe: $Url"
+                    $Installer = & $CurlPath -kfsSL $Url
+
+                    if ($LASTEXITCODE -eq 0 -and $Installer) {
+                        Invoke-Expression ($Installer -join [Environment]::NewLine)
+                        return
+                    }
+
+                    Write-Host "curl.exe failed with exit code $LASTEXITCODE"
+                }
+                catch {
+                    Write-Host "curl.exe Claude CLI installer download failed: $Url"
+                    Write-Host $_.Exception.Message
+                }
+            }
+        }
+
+        throw "Claude CLI installer download failed."
     }
     finally {
-        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $prev
+        [System.Net.ServicePointManager]::SecurityProtocol = $PreviousSecurityProtocol
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $PreviousCertificateCallback
     }
 }
 

@@ -230,11 +230,17 @@ git clone https://github.com/codestreamkr/claude-code-init.git /tmp/claude-init 
 
 ## Claude 인증서 오류 대응
 
-Claude Code CLI는 인증서 우회 범위를 설치 명령 1회로 제한한다.
+Claude Code CLI는 TLS와 인증서 우회 범위를 설치 명령 1회로 제한한다.
 
-- Windows: 기존 인증서 검증 콜백 저장, 설치 실행, `finally`에서 원복
+- Windows: TLS 1.2 추가, 기존 인증서 검증 콜백 저장, 설치 실행, `finally`에서 원복
+- Windows 재시도: `claude.ai/install.ps1`, `downloads.claude.ai/claude-code-releases/bootstrap.ps1`, `curl.exe -kfsSL` 순서로 시도
 - macOS: `curl -kfsSL https://claude.ai/install.sh | bash` 실행
 - 범위: Claude Code CLI 설치 명령에만 적용
+
+Windows PowerShell에서 아래 오류가 나면 TLS 연결 실패로 본다.
+
+- 증상: `기본 연결이 닫혔습니다. 보내기에서 예기치 않은 오류가 발생했습니다.`
+- 조치: 최신 스크립트는 TLS 1.2와 직접 다운로드 URL 재시도를 자동 적용함
 
 ## 운영 기준
 
@@ -245,5 +251,5 @@ Claude Code CLI는 인증서 우회 범위를 설치 명령 1회로 제한한다
 
 ## 이력관리
 
-- 2026-05-19: Windows 패키지별 설치 확인과 실패 목록 처리 추가
+- 2026-05-19: Windows Claude CLI 설치 TLS 재시도 처리 추가
 - 2026-05-19: 개발환경 자동화 최초 등록
