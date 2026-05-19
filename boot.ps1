@@ -9,6 +9,19 @@ $ErrorActionPreference = "Stop"
 
 $RepositoryUrl = "https://github.com/codestreamkr/dev-init.git"
 $TargetDir = Join-Path $env:TEMP "dev-init"
+$InstallParameters = @{}
+
+if ($DryRun) {
+    $InstallParameters["DryRun"] = $true
+}
+
+if ($NoUpgrade) {
+    $InstallParameters["NoUpgrade"] = $true
+}
+
+if ($SkipAiInit) {
+    $InstallParameters["SkipAiInit"] = $true
+}
 
 function Test-Windows {
     if ([Environment]::OSVersion.Platform -ne "Win32NT") {
@@ -99,7 +112,7 @@ function Invoke-RepositoryInstall {
     & $Git clone $RepositoryUrl $TargetDir
 
     $Install = Join-Path $TargetDir "install.ps1"
-    & $Install @PSBoundParameters
+    & $Install @InstallParameters
 }
 
 function Main {

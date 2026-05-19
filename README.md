@@ -17,9 +17,10 @@ Windows와 macOS 개발환경을 같은 저장소에서 관리한다.
 
 ### Windows
 
-Windows 11 PowerShell에서 실행한다.
+Windows 11의 기본 Windows PowerShell에서 실행한다.
 
 ```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex
 ```
 
@@ -82,11 +83,52 @@ bash install.sh --skip-ai-init
 
 ## Windows 실행
 
-Windows는 PowerShell에서 `winget`을 사용한다.
+Windows는 Windows PowerShell에서 `winget`을 사용한다.
+
+PowerShell 7이 없어도 실행할 수 있다.
+
+- 실행 대상: Windows 기본 내장 `Windows PowerShell`
+- 실행 파일: `powershell.exe`
+- 기준 버전: Windows PowerShell 5.1
+- 호환 대상: PowerShell 7 이상
+- 사전 조건: `winget` 사용 가능
+
+PowerShell 7에서도 같은 명령을 사용할 수 있다.
+
+- Windows PowerShell: `powershell.exe`
+- PowerShell 7 이상: `pwsh.exe`
+- 기준 원칙: Windows 기본 설치 환경인 Windows PowerShell 5.1에서 먼저 동작해야 함
+
+실행 정책은 현재 PowerShell 창에만 임시로 허용한다.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\install.ps1
+```
+
+### Windows 빠른 실행 오류 대응
+
+`irm` 이후 clone은 성공했지만 `install.ps1` 실행에서 보안 오류가 나면 실행 정책에 막힌 상태다.
+
+- 증상: `이 시스템에서 스크립트를 실행할 수 없으므로 ... install.ps1 파일을 로드할 수 없습니다.`
+- 원인: 현재 Windows PowerShell 실행 정책이 로컬 스크립트 실행을 막음
+- 조치: 같은 PowerShell 창에서 실행 정책을 `Process` 범위로 임시 허용 후 다시 실행
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex
+```
+
+한 줄로 새 Windows PowerShell 프로세스에서 실행할 수도 있다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex"
+```
+
+현재 정책 확인은 아래 명령으로 한다.
+
+```powershell
+Get-ExecutionPolicy -List
 ```
 
 ### Windows 옵션
@@ -184,4 +226,5 @@ Claude Code CLI는 인증서 우회 범위를 설치 명령 1회로 제한한다
 
 ## 이력관리
 
+- 2026-05-19: Windows PowerShell 실행 정책 오류 대응 가이드 추가
 - 2026-05-19: 개발환경 자동화 최초 등록
