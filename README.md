@@ -21,7 +21,7 @@ Windows 11의 기본 Windows PowerShell에서 실행한다.
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex
+irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex
 ```
 
 ### macOS
@@ -29,7 +29,7 @@ irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex
 터미널에서 실행한다.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.sh | bash
+curl -fsSL https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.sh | bash
 ```
 
 ## 구조
@@ -116,13 +116,13 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex
+irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex
 ```
 
 한 줄로 새 Windows PowerShell 프로세스에서 실행할 수도 있다.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/codestreamkr/dev-init/main/boot.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex"
 ```
 
 현재 정책 확인은 아래 명령으로 한다.
@@ -226,5 +226,5 @@ Claude Code CLI는 인증서 우회 범위를 설치 명령 1회로 제한한다
 
 ## 이력관리
 
-- 2026-05-19: Windows PowerShell 실행 정책 오류 대응 가이드 추가
+- 2026-05-19: Windows PowerShell 실행 정책 오류 대응과 raw refs 실행 가이드 추가
 - 2026-05-19: 개발환경 자동화 최초 등록
