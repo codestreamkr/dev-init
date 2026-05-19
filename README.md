@@ -106,6 +106,14 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\install.ps1
 ```
 
+설치 대상은 패키지별로 확인한 뒤 처리한다.
+
+- 확인: `winget list --id <패키지ID> --exact` 실행 후 출력에 같은 패키지 ID가 있는지 확인
+- 설치됨: 해당 패키지 건너뜀
+- 미설치: `winget install --id <패키지ID> --exact --silent` 실행
+- 실패: 다음 패키지 설치를 계속 진행하고 마지막에 실패 목록 출력
+- 종료: 실패 패키지가 있으면 전체 실행을 실패로 종료
+
 ### Windows 빠른 실행 오류 대응
 
 `irm` 이후 clone은 성공했지만 `install.ps1` 실행에서 보안 오류가 나면 실행 정책에 막힌 상태다.
@@ -237,5 +245,5 @@ Claude Code CLI는 인증서 우회 범위를 설치 명령 1회로 제한한다
 
 ## 이력관리
 
-- 2026-05-19: Windows PowerShell 실행 정책 오류와 App Installer 업데이트 후 winget 오류 대응 추가
+- 2026-05-19: Windows 패키지별 설치 확인과 실패 목록 처리 추가
 - 2026-05-19: 개발환경 자동화 최초 등록

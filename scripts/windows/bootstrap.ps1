@@ -38,17 +38,22 @@ function Get-WingetCommand {
 function Invoke-WingetCommand {
     param(
         [Parameter(Mandatory = $true)]
-        [string[]]$Arguments
+        [string[]]$Arguments,
+
+        [switch]$AllowFailure
     )
 
     $Winget = Get-WingetCommand
 
     Write-Host "Running: $Winget $($Arguments -join ' ')"
-    & $Winget @Arguments
+    & $Winget @Arguments | ForEach-Object { Write-Host $_ }
+    $ExitCode = $LASTEXITCODE
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "winget failed with exit code $LASTEXITCODE: $($Arguments -join ' ')"
+    if ($ExitCode -ne 0 -and -not $AllowFailure) {
+        throw "winget failed with exit code $ExitCode: $($Arguments -join ' ')"
     }
+
+    return $ExitCode
 }
 
 function Get-GitCommand {
@@ -84,6 +89,37 @@ function Get-WingetPackages {
         Where-Object { $_ -and -not $_.StartsWith("#") }
 }
 
+function Test-WingetPackageInstalled {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PackageId
+    )
+
+    $Winget = Get-WingetCommand
+    $Arguments = @(
+        "list",
+        "--id",
+        $PackageId,
+        "--exact",
+        "--accept-source-agreements"
+    )
+
+    Write-Host "Running: $Winget $($Arguments -join ' ')"
+    $Output = & $Winget @Arguments 2>&1
+    $ExitCode = $LASTEXITCODE
+
+    foreach ($Line in $Output) {
+        Write-Host $Line
+    }
+
+    if ($ExitCode -ne 0) {
+        return $false
+    }
+
+    $PackagePattern = "(^|\s)$([regex]::Escape($PackageId))(\s|$)"
+    return [bool]($Output | Where-Object { $_ -match $PackagePattern })
+}
+
 function Invoke-WingetInstall {
     param(
         [Parameter(Mandatory = $true)]
@@ -91,11 +127,25 @@ function Invoke-WingetInstall {
     )
 
     if ($DryRun) {
+        Write-Host "[dry-run] winget list --id $PackageId --exact"
         Write-Host "[dry-run] winget install --id $PackageId --exact --silent"
-        return
+        return [pscustomobject]@{
+            PackageId = $PackageId
+            Status = "DryRun"
+            ExitCode = 0
+        }
     }
 
-    Invoke-WingetCommand -Arguments @(
+    if (Test-WingetPackageInstalled -PackageId $PackageId) {
+        Write-Host "Already installed: $PackageId"
+        return [pscustomobject]@{
+            PackageId = $PackageId
+            Status = "Skipped"
+            ExitCode = 0
+        }
+    }
+
+    $ExitCode = Invoke-WingetCommand -Arguments @(
         "install",
         "--id",
         $PackageId,
@@ -103,7 +153,47 @@ function Invoke-WingetInstall {
         "--silent",
         "--accept-package-agreements",
         "--accept-source-agreements"
+    ) -AllowFailure
+
+    if ($ExitCode -eq 0) {
+        return [pscustomobject]@{
+            PackageId = $PackageId
+            Status = "Installed"
+            ExitCode = 0
+        }
+    }
+
+    return [pscustomobject]@{
+        PackageId = $PackageId
+        Status = "Failed"
+        ExitCode = $ExitCode
+    }
+}
+
+function Invoke-WingetPackageInstall {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Packages
     )
+
+    $Results = foreach ($Package in $Packages) {
+        Invoke-WingetInstall -PackageId $Package
+    }
+
+    $Failed = @($Results | Where-Object { $_.Status -eq "Failed" })
+
+    if ($Failed.Count -eq 0) {
+        Write-Host "Winget package installation completed."
+        return
+    }
+
+    Write-Host "Winget package installation failed for $($Failed.Count) package(s)."
+
+    foreach ($Item in $Failed) {
+        Write-Host "- $($Item.PackageId): exit code $($Item.ExitCode)"
+    }
+
+    throw "One or more winget packages failed to install."
 }
 
 function Write-WingetUpgradeNotice {
@@ -183,9 +273,7 @@ function Main {
 
     Write-WingetUpgradeNotice
 
-    foreach ($Package in $Packages) {
-        Invoke-WingetInstall -PackageId $Package
-    }
+    Invoke-WingetPackageInstall -Packages $Packages
 
     Install-ClaudeCli
     Invoke-AiInit
