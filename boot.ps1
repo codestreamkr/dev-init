@@ -59,7 +59,7 @@ function Invoke-WingetCommand {
     & $Winget @Arguments
 
     if ($LASTEXITCODE -ne 0) {
-        throw "winget failed with exit code $LASTEXITCODE: $($Arguments -join ' ')"
+        throw "winget failed with exit code ${LASTEXITCODE}: $($Arguments -join ' ')"
     }
 }
 

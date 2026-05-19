@@ -50,7 +50,7 @@ function Invoke-WingetCommand {
     $ExitCode = $LASTEXITCODE
 
     if ($ExitCode -ne 0 -and -not $AllowFailure) {
-        throw "winget failed with exit code $ExitCode: $($Arguments -join ' ')"
+        throw "winget failed with exit code ${ExitCode}: $($Arguments -join ' ')"
     }
 
     return $ExitCode
