@@ -201,7 +201,21 @@ function Write-WingetUpgradeNotice {
     Write-Host "Reason: App Installer upgrades require a new PowerShell session before winget can run reliably."
 }
 
+function Test-CommandAvailable {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
 function Install-ClaudeCli {
+    if (Test-CommandAvailable -Name "claude") {
+        Write-Host "Already installed: Claude CLI"
+        return
+    }
+
     if ($DryRun) {
         Write-Host "[dry-run] Install Claude CLI with TLS 1.2 and temporary certificate validation bypass, then restore settings."
         return
@@ -312,6 +326,33 @@ function Invoke-PowerShellScript {
     }
 }
 
+function Invoke-AiInitRepository {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CommandName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Repository,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Destination
+    )
+
+    if (Test-CommandAvailable -Name $CommandName) {
+        Write-Host "Already initialized: $CommandName"
+        return
+    }
+
+    if ($DryRun) {
+        Write-Host "[dry-run] git clone $Repository $Destination"
+        Write-Host "[dry-run] powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Destination\install.ps1"
+        return
+    }
+
+    Invoke-GitClone -Repository $Repository -Destination $Destination
+    Invoke-PowerShellScript -ScriptPath (Join-Path $Destination "install.ps1")
+}
+
 function Invoke-AiInit {
     if ($SkipAiInit) {
         return
@@ -320,19 +361,15 @@ function Invoke-AiInit {
     $CodexDir = Join-Path $env:TEMP "codex-init"
     $ClaudeDir = Join-Path $env:TEMP "claude-init"
 
-    if ($DryRun) {
-        Write-Host "[dry-run] git clone https://github.com/codestreamkr/chatgpt-codex-init.git $CodexDir"
-        Write-Host "[dry-run] powershell.exe -NoProfile -ExecutionPolicy Bypass -File $CodexDir\install.ps1"
-        Write-Host "[dry-run] git clone https://github.com/codestreamkr/claude-code-init.git $ClaudeDir"
-        Write-Host "[dry-run] powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ClaudeDir\install.ps1"
-        return
-    }
+    Invoke-AiInitRepository `
+        -CommandName "codex" `
+        -Repository "https://github.com/codestreamkr/chatgpt-codex-init.git" `
+        -Destination $CodexDir
 
-    Invoke-GitClone -Repository "https://github.com/codestreamkr/chatgpt-codex-init.git" -Destination $CodexDir
-    Invoke-PowerShellScript -ScriptPath (Join-Path $CodexDir "install.ps1")
-
-    Invoke-GitClone -Repository "https://github.com/codestreamkr/claude-code-init.git" -Destination $ClaudeDir
-    Invoke-PowerShellScript -ScriptPath (Join-Path $ClaudeDir "install.ps1")
+    Invoke-AiInitRepository `
+        -CommandName "claude" `
+        -Repository "https://github.com/codestreamkr/claude-code-init.git" `
+        -Destination $ClaudeDir
 }
 
 function Main {

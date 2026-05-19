@@ -112,6 +112,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 - 실패: 다음 패키지 설치를 계속 진행하고 마지막에 실패 목록 출력
 - 종료: 실패 패키지가 있으면 전체 실행을 실패로 종료
 
+CLI와 AI 기본 설정도 설치 여부를 먼저 확인한다.
+
+- Codex CLI: `codex` 명령이 있으면 설정 저장소 실행 건너뜀
+- Claude Code CLI: `claude` 명령이 있으면 CLI 설치와 설정 저장소 실행 건너뜀
+
 ### Windows 빠른 실행 오류 대응
 
 `irm` 이후 clone은 성공했지만 `install.ps1` 실행에서 보안 오류가 나면 예전 `boot.ps1`이 실행된 상태다.
@@ -209,6 +214,7 @@ Codex와 Claude Code 기본 설정은 패키지 설치 후 실행한다.
 
 - Codex 설정 저장소: `https://github.com/codestreamkr/chatgpt-codex-init.git`
 - Claude Code 설정 저장소: `https://github.com/codestreamkr/claude-code-init.git`
+- Windows 실행 기준: `codex`, `claude` 명령 존재 여부 확인 후 미설치 상태에서만 실행
 - Windows 실행 위치: `$env:TEMP\codex-init`, `$env:TEMP\claude-init`
 - macOS 실행 위치: `/tmp/codex-init`, `/tmp/claude-init`
 
@@ -247,5 +253,5 @@ Windows PowerShell에서 아래 오류가 나면 TLS 연결 실패로 본다.
 
 ## 이력관리
 
-- 2026-05-19: Windows 파일 기반 PowerShell 스크립트 실행 정책 우회 처리 추가
+- 2026-05-19: Windows Codex와 Claude 설치 여부 확인 추가
 - 2026-05-19: 개발환경 자동화 최초 등록
