@@ -18,8 +18,36 @@ function Test-Windows {
 }
 
 function Test-Winget {
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    [void](Get-WingetCommand)
+}
+
+function Get-WingetCommand {
+    $WingetCommand = Get-Command winget.exe -ErrorAction SilentlyContinue
+
+    if (-not $WingetCommand) {
+        $WingetCommand = Get-Command winget -ErrorAction SilentlyContinue
+    }
+
+    if (-not $WingetCommand) {
         throw "winget is not installed. Install App Installer from Microsoft Store first."
+    }
+
+    return $WingetCommand.Source
+}
+
+function Invoke-WingetCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $Winget = Get-WingetCommand
+
+    Write-Host "Running: $Winget $($Arguments -join ' ')"
+    & $Winget @Arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "winget failed with exit code $LASTEXITCODE: $($Arguments -join ' ')"
     }
 }
 
@@ -67,29 +95,24 @@ function Invoke-WingetInstall {
         return
     }
 
-    winget install `
-        --id $PackageId `
-        --exact `
-        --silent `
-        --accept-package-agreements `
-        --accept-source-agreements
+    Invoke-WingetCommand -Arguments @(
+        "install",
+        "--id",
+        $PackageId,
+        "--exact",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    )
 }
 
-function Invoke-WingetUpgrade {
+function Write-WingetUpgradeNotice {
     if ($NoUpgrade) {
         return
     }
 
-    if ($DryRun) {
-        Write-Host "[dry-run] winget upgrade --all --silent"
-        return
-    }
-
-    winget upgrade `
-        --all `
-        --silent `
-        --accept-package-agreements `
-        --accept-source-agreements
+    Write-Host "Skipping winget upgrade --all during bootstrap."
+    Write-Host "Reason: App Installer upgrades require a new PowerShell session before winget can run reliably."
 }
 
 function Install-ClaudeCli {
@@ -158,7 +181,7 @@ function Main {
 
     $Packages = Get-WingetPackages
 
-    Invoke-WingetUpgrade
+    Write-WingetUpgradeNotice
 
     foreach ($Package in $Packages) {
         Invoke-WingetInstall -PackageId $Package

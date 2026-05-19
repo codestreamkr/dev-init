@@ -131,10 +131,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubus
 Get-ExecutionPolicy -List
 ```
 
+`winget.exe` 경로가 인식할 수 없는 명령으로 출력되면 App Installer 업데이트 직후 상태일 수 있다.
+
+- 증상: `인식할 수 없는 명령임: 'C:\Users\...\WindowsApps\winget.exe'`
+- 원인: `Microsoft.AppInstaller` 업데이트 후 현재 PowerShell 세션의 `winget` 실행 별칭이 갱신 대기 상태가 됨
+- 조치: Windows PowerShell 창을 닫고 새로 연 뒤 최신 `boot.ps1`을 다시 실행
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex
+```
+
 ### Windows 옵션
 
 - `-DryRun`: 설치 명령을 실행하지 않고 대상만 출력
-- `-NoUpgrade`: 설치 전 `winget upgrade --all` 생략
+- `-NoUpgrade`: 전체 업그레이드 단계 생략 옵션. Windows에서는 App Installer 세션 오류를 막기 위해 기본 실행에서도 `winget upgrade --all`을 실행하지 않음
 - `-SkipAiInit`: Codex와 Claude Code 기본 설정 실행 생략
 
 예시:
@@ -226,5 +237,5 @@ Claude Code CLI는 인증서 우회 범위를 설치 명령 1회로 제한한다
 
 ## 이력관리
 
-- 2026-05-19: Windows PowerShell 실행 정책 오류 대응과 raw refs 실행 가이드 추가
+- 2026-05-19: Windows PowerShell 실행 정책 오류와 App Installer 업데이트 후 winget 오류 대응 추가
 - 2026-05-19: 개발환경 자동화 최초 등록

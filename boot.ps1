@@ -30,8 +30,36 @@ function Test-Windows {
 }
 
 function Test-Winget {
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    [void](Get-WingetCommand)
+}
+
+function Get-WingetCommand {
+    $WingetCommand = Get-Command winget.exe -ErrorAction SilentlyContinue
+
+    if (-not $WingetCommand) {
+        $WingetCommand = Get-Command winget -ErrorAction SilentlyContinue
+    }
+
+    if (-not $WingetCommand) {
         throw "winget is not installed. Install App Installer from Microsoft Store first."
+    }
+
+    return $WingetCommand.Source
+}
+
+function Invoke-WingetCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $Winget = Get-WingetCommand
+
+    Write-Host "Running: $Winget $($Arguments -join ' ')"
+    & $Winget @Arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "winget failed with exit code $LASTEXITCODE: $($Arguments -join ' ')"
     }
 }
 
@@ -66,12 +94,15 @@ function Install-Git {
         return
     }
 
-    winget install `
-        --id Git.Git `
-        --exact `
-        --silent `
-        --accept-package-agreements `
-        --accept-source-agreements
+    Invoke-WingetCommand -Arguments @(
+        "install",
+        "--id",
+        "Git.Git",
+        "--exact",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    )
 }
 
 function Ensure-Git {
