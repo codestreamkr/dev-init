@@ -1,0 +1,33 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate macOS script syntax
+        run: |
+          bash -n boot.sh
+          bash -n install.sh
+          bash -n scripts/macos/bootstrap.sh
+
+      - name: Validate Windows script syntax
+        shell: pwsh
+        run: |
+          $null = [scriptblock]::Create((Get-Content -Raw boot.ps1))
+          $null = [scriptblock]::Create((Get-Content -Raw install.ps1))
+          $null = [scriptblock]::Create((Get-Content -Raw scripts/windows/bootstrap.ps1))
+
+      - name: Check package manifests
+        run: |
+          test -s config/brew/Brewfile
+          test -s config/winget/packages.txt

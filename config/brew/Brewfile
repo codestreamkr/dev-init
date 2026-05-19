@@ -1,0 +1,25 @@
+tap "homebrew/bundle"
+tap "homebrew/cask"
+
+brew "git"
+brew "gh"
+brew "node"
+brew "openjdk@8"
+brew "openjdk@21"
+brew "python@3.14"
+
+cask "intellij-idea"
+cask "datagrip"
+cask "docker"
+cask "maccy"
+cask "visual-studio-code"
+cask "google-chrome"
+cask "codex"
+
+# Recommended packages. Uncomment only what the team uses.
+# brew "jq"
+# brew "mise"
+# brew "ripgrep"
+# brew "wget"
+# cask "iterm2"
+# cask "orbstack"

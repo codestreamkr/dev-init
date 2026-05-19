@@ -1,0 +1,24 @@
+# One winget package id per line.
+# Comments and blank lines are ignored.
+
+Git.Git
+GitHub.cli
+OpenJS.NodeJS.LTS
+EclipseAdoptium.Temurin.8.JDK
+Microsoft.OpenJDK.21
+Python.Python.3.14
+JetBrains.IntelliJIDEA.Ultimate
+JetBrains.DataGrip
+Docker.DockerDesktop
+Ditto.Ditto
+Microsoft.VisualStudioCode
+Google.Chrome
+Microsoft.PowerShell
+OpenAI.Codex
+
+# Recommended packages. Uncomment only what the team uses.
+# jqlang.jq
+# jdx.mise
+# BurntSushi.ripgrep.MSVC
+# GNU.Wget2
+# Microsoft.PowerToys
