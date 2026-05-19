@@ -20,7 +20,6 @@ Windows와 macOS 개발환경을 같은 저장소에서 관리한다.
 Windows 11의 기본 Windows PowerShell에서 실행한다.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex
 ```
 
@@ -99,11 +98,10 @@ PowerShell 7에서도 같은 명령을 사용할 수 있다.
 - PowerShell 7 이상: `pwsh.exe`
 - 기준 원칙: Windows 기본 설치 환경인 Windows PowerShell 5.1에서 먼저 동작해야 함
 
-실행 정책은 현재 PowerShell 창에만 임시로 허용한다.
+파일로 받은 `install.ps1`은 실행 정책을 우회한 새 PowerShell 프로세스에서 실행한다.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\install.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 설치 대상은 패키지별로 확인한 뒤 처리한다.
@@ -116,21 +114,20 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
 ### Windows 빠른 실행 오류 대응
 
-`irm` 이후 clone은 성공했지만 `install.ps1` 실행에서 보안 오류가 나면 실행 정책에 막힌 상태다.
+`irm` 이후 clone은 성공했지만 `install.ps1` 실행에서 보안 오류가 나면 예전 `boot.ps1`이 실행된 상태다.
 
 - 증상: `이 시스템에서 스크립트를 실행할 수 없으므로 ... install.ps1 파일을 로드할 수 없습니다.`
-- 원인: 현재 Windows PowerShell 실행 정책이 로컬 스크립트 실행을 막음
-- 조치: 같은 PowerShell 창에서 실행 정책을 `Process` 범위로 임시 허용 후 다시 실행
+- 원인: clone된 `install.ps1`을 실행 정책 우회 없이 파일로 실행함
+- 조치: 최신 `boot.ps1`은 `powershell.exe -ExecutionPolicy Bypass -File`로 `install.ps1`을 실행함
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex
 ```
 
 한 줄로 새 Windows PowerShell 프로세스에서 실행할 수도 있다.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex"
 ```
 
 현재 정책 확인은 아래 명령으로 한다.
@@ -146,7 +143,6 @@ Get-ExecutionPolicy -List
 - 조치: Windows PowerShell 창을 닫고 새로 연 뒤 최신 `boot.ps1`을 다시 실행
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot.ps1 | iex
 ```
 
@@ -159,9 +155,9 @@ irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot
 예시:
 
 ```powershell
-.\install.ps1 -DryRun
-.\install.ps1 -NoUpgrade
-.\install.ps1 -SkipAiInit
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -DryRun
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -NoUpgrade
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SkipAiInit
 ```
 
 ## 설치 목록 수정
@@ -219,8 +215,8 @@ Codex와 Claude Code 기본 설정은 패키지 설치 후 실행한다.
 실행 명령은 OS별 스크립트에 포함되어 있다.
 
 ```powershell
-git clone https://github.com/codestreamkr/chatgpt-codex-init.git $env:TEMP\codex-init; & $env:TEMP\codex-init\install.ps1
-git clone https://github.com/codestreamkr/claude-code-init.git $env:TEMP\claude-init; & $env:TEMP\claude-init\install.ps1
+git clone https://github.com/codestreamkr/chatgpt-codex-init.git $env:TEMP\codex-init; powershell.exe -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\codex-init\install.ps1
+git clone https://github.com/codestreamkr/claude-code-init.git $env:TEMP\claude-init; powershell.exe -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\claude-init\install.ps1
 ```
 
 ```bash
@@ -251,5 +247,5 @@ Windows PowerShell에서 아래 오류가 나면 TLS 연결 실패로 본다.
 
 ## 이력관리
 
-- 2026-05-19: Windows Claude CLI 설치 TLS 재시도 처리 추가
+- 2026-05-19: Windows 파일 기반 PowerShell 스크립트 실행 정책 우회 처리 추가
 - 2026-05-19: 개발환경 자동화 최초 등록

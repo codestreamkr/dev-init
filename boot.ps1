@@ -63,6 +63,42 @@ function Invoke-WingetCommand {
     }
 }
 
+function Invoke-PowerShellScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath,
+
+        [hashtable]$Parameters = @{}
+    )
+
+    $PowerShell = Get-Command powershell.exe -ErrorAction SilentlyContinue
+
+    if (-not $PowerShell) {
+        throw "powershell.exe is not available."
+    }
+
+    $Arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $ScriptPath
+    )
+
+    foreach ($Name in @("DryRun", "NoUpgrade", "SkipAiInit")) {
+        if ($Parameters.ContainsKey($Name) -and $Parameters[$Name]) {
+            $Arguments += "-$Name"
+        }
+    }
+
+    Write-Host "Running: $($PowerShell.Source) $($Arguments -join ' ')"
+    & $PowerShell.Source @Arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "PowerShell script failed with exit code ${LASTEXITCODE}: $ScriptPath"
+    }
+}
+
 function Get-GitCommand {
     $GitCommand = Get-Command git -ErrorAction SilentlyContinue
 
@@ -132,7 +168,7 @@ function Invoke-RepositoryInstall {
     if ($DryRun) {
         Write-Host "[dry-run] Remove $TargetDir"
         Write-Host "[dry-run] git clone $RepositoryUrl $TargetDir"
-        Write-Host "[dry-run] & $TargetDir\install.ps1"
+        Write-Host "[dry-run] powershell.exe -NoProfile -ExecutionPolicy Bypass -File $TargetDir\install.ps1"
         return
     }
 
@@ -143,7 +179,7 @@ function Invoke-RepositoryInstall {
     & $Git clone $RepositoryUrl $TargetDir
 
     $Install = Join-Path $TargetDir "install.ps1"
-    & $Install @InstallParameters
+    Invoke-PowerShellScript -ScriptPath $Install -Parameters $InstallParameters
 }
 
 function Main {

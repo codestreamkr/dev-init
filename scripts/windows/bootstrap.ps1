@@ -288,6 +288,34 @@ function Invoke-GitClone {
     & $Git clone $Repository $Destination
 }
 
+function Invoke-PowerShellScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath
+    )
+
+    $PowerShell = Get-Command powershell.exe -ErrorAction SilentlyContinue
+
+    if (-not $PowerShell) {
+        throw "powershell.exe is not available."
+    }
+
+    $Arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $ScriptPath
+    )
+
+    Write-Host "Running: $($PowerShell.Source) $($Arguments -join ' ')"
+    & $PowerShell.Source @Arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "PowerShell script failed with exit code ${LASTEXITCODE}: $ScriptPath"
+    }
+}
+
 function Invoke-AiInit {
     if ($SkipAiInit) {
         return
@@ -298,17 +326,17 @@ function Invoke-AiInit {
 
     if ($DryRun) {
         Write-Host "[dry-run] git clone https://github.com/codestreamkr/chatgpt-codex-init.git $CodexDir"
-        Write-Host "[dry-run] & $CodexDir\install.ps1"
+        Write-Host "[dry-run] powershell.exe -NoProfile -ExecutionPolicy Bypass -File $CodexDir\install.ps1"
         Write-Host "[dry-run] git clone https://github.com/codestreamkr/claude-code-init.git $ClaudeDir"
-        Write-Host "[dry-run] & $ClaudeDir\install.ps1"
+        Write-Host "[dry-run] powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ClaudeDir\install.ps1"
         return
     }
 
     Invoke-GitClone -Repository "https://github.com/codestreamkr/chatgpt-codex-init.git" -Destination $CodexDir
-    & (Join-Path $CodexDir "install.ps1")
+    Invoke-PowerShellScript -ScriptPath (Join-Path $CodexDir "install.ps1")
 
     Invoke-GitClone -Repository "https://github.com/codestreamkr/claude-code-init.git" -Destination $ClaudeDir
-    & (Join-Path $ClaudeDir "install.ps1")
+    Invoke-PowerShellScript -ScriptPath (Join-Path $ClaudeDir "install.ps1")
 }
 
 function Main {
