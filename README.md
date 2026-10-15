@@ -8,6 +8,7 @@ Windows와 macOS 개발환경을 같은 저장소에서 관리한다.
 
 - Windows: `winget` 기반 설치
 - macOS: `Homebrew` 기반 설치
+- 기본 동작: 없으면 설치하고, 있으면 설치 목록의 버전 정책 안에서 최신 버전으로 업데이트
 - 공통 원칙: 실행 스크립트와 설치 목록을 분리
 - 실행 단위: GitHub 저장소 복제 후 루트 설치 스크립트 실행
 
@@ -54,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/ma
 
 ## macOS 실행
 
-macOS는 `Homebrew`와 `brew bundle`을 사용한다.
+macOS는 `Homebrew`와 `brew bundle`을 사용한다. 기본적으로 `brew upgrade --greedy`로 자동 업데이트 앱을 포함한 기존 Homebrew 패키지를 갱신하고, 설치 목록에서 빠진 항목을 설치한다.
 
 실행 시 Homebrew 설치 여부를 먼저 확인한다.
 
@@ -69,7 +70,7 @@ bash install.sh
 ### macOS 옵션
 
 - `--dry-run`: 설치 명령을 실행하지 않고 대상만 출력
-- `--no-upgrade`: 설치 전 `brew upgrade` 생략
+- `--no-upgrade`: `brew upgrade`, `brew bundle`, Claude CLI의 기존 패키지 업그레이드 생략
 - `--skip-ai-init`: Codex와 Claude Code 기본 설정 실행 생략
 
 예시:
@@ -107,15 +108,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 설치 대상은 패키지별로 확인한 뒤 처리한다.
 
 - 확인: `winget list --id <패키지ID> --exact` 실행 후 출력에 같은 패키지 ID가 있는지 확인
-- 설치됨: 해당 패키지 건너뜀
+- 설치됨: `winget upgrade --id <패키지ID> --exact --silent --include-unknown` 실행
+- 이미 최신: 업데이트 없음 종료 코드를 정상 처리
+- `-NoUpgrade`: 설치된 패키지는 유지하고 누락된 항목만 설치
 - 미설치: `winget install --id <패키지ID> --exact --silent` 실행
 - 실패: 다음 패키지 설치를 계속 진행하고 마지막에 실패 목록 출력
 - 종료: 실패 패키지가 있으면 전체 실행을 실패로 종료
 
 CLI와 AI 기본 설정도 설치 여부를 먼저 확인한다.
 
-- Codex CLI: `codex` 명령이 있으면 설정 저장소 실행 건너뜀
-- Claude Code CLI: `claude` 명령이 있으면 CLI 설치와 설정 저장소 실행 건너뜀
+- Claude Code CLI: 없으면 설치, 있으면 `claude update` 실행 (`--no-upgrade` / `-NoUpgrade` 사용 시 업데이트 생략)
+- AI 기본 설정: CLI 존재 여부와 별개로, 설정 스크립트가 성공한 기록이 있을 때만 건너뜀
 
 ### Windows 빠른 실행 오류 대응
 
@@ -154,7 +157,8 @@ irm https://raw.githubusercontent.com/codestreamkr/dev-init/refs/heads/main/boot
 ### Windows 옵션
 
 - `-DryRun`: 설치 명령을 실행하지 않고 대상만 출력
-- `-NoUpgrade`: 전체 업그레이드 단계 생략 옵션. Windows에서는 App Installer 세션 오류를 막기 위해 기본 실행에서도 `winget upgrade --all`을 실행하지 않음
+- `-NoUpgrade`: 설치된 패키지와 Claude CLI의 업데이트 생략. 누락된 패키지는 설치
+- 기본 실행에서는 설치 목록의 패키지만 개별 업데이트하며 `winget upgrade --all`은 사용하지 않음
 - `-SkipAiInit`: Codex와 Claude Code 기본 설정 실행 생략
 
 예시:
@@ -180,19 +184,41 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SkipAiIni
 | --- | --- | --- |
 | Git | `git` | `Git.Git` |
 | GitHub CLI | `gh` | `GitHub.cli` |
-| Node.js | `node` | `OpenJS.NodeJS.LTS` |
-| Java 8 | `openjdk@8` | `EclipseAdoptium.Temurin.8.JDK` |
+| Node.js LTS | `node@24` | `OpenJS.NodeJS.LTS` |
 | Java 21 | `openjdk@21` | `Microsoft.OpenJDK.21` |
 | Python | `python@3.14` | `Python.Python.3.14` |
 | IntelliJ IDEA Ultimate | `intellij-idea` | `JetBrains.IntelliJIDEA.Ultimate` |
+| JetBrains Toolbox | `jetbrains-toolbox` | `JetBrains.Toolbox` |
 | DataGrip | `datagrip` | `JetBrains.DataGrip` |
-| Docker Desktop | `docker` | `Docker.DockerDesktop` |
+| Android Studio | `android-studio` | `Google.AndroidStudio` |
+| Docker Desktop | `docker-desktop` | `Docker.DockerDesktop` |
 | 클립보드 관리 | `maccy` | `Ditto.Ditto` |
 | Visual Studio Code | `visual-studio-code` | `Microsoft.VisualStudioCode` |
 | Chrome | `google-chrome` | `Google.Chrome` |
+| Google Drive | `google-drive` | `Google.GoogleDrive` |
+| 네이버 MYBOX | 네이버 공식 `.pkg` 설치 | `NAVER.MYBOX` |
+| 카카오톡 | Mac App Store (`869223134`) | `Kakao.KakaoTalk` |
+| Logi Options+ | `logi-options+` | `Logitech.OptionsPlus` |
+| Discord | `discord` | `Discord.Discord` |
+| Cloudflare WARP | `cloudflare-warp` | `Cloudflare.Warp` |
 | 터미널 | - | `Microsoft.PowerShell` |
-| Claude Code CLI | `curl -kfsSL https://claude.ai/install.sh \| bash` | `irm https://claude.ai/install.ps1 \| iex` |
+| Claude Code CLI | `curl -fsSL https://claude.ai/install.sh \| bash` | `irm https://claude.ai/install.ps1 \| iex` |
 | Codex CLI | `codex` | `OpenAI.Codex` |
+| Antigravity CLI (`agy`) | Google 공식 네이티브 설치기 | Google 공식 네이티브 설치기 |
+| Grok CLI (`grok`) | xAI 공식 네이티브 설치기 | xAI 공식 네이티브 설치기 |
+| Pi CLI (`pi`) | `@earendil-works/pi-coding-agent` | `@earendil-works/pi-coding-agent` |
+
+macOS 카카오톡은 `mas`로 설치한다. 실행 전에 Mac App Store에 로그인한다.
+Logi Options+는 설치 후 권한 설정과 재부팅이 필요할 수 있다.
+계정 로그인과 동기화 폴더 선택은 각 앱에서 직접 진행한다.
+
+macOS MYBOX는 [네이버 공식 다운로드 페이지](https://mybox.naver.com/about/explorer-guide/mac)의 설치 패키지를 사용한다.
+macOS 14 이상이 필요하다. 네이버 설치 서명을 검증한 뒤 관리자 권한으로 설치한다.
+기본 실행에서는 최신 패키지를 다시 설치한다. `--no-upgrade`는 기존 MYBOX 앱의 재설치를 생략한다.
+
+Node는 macOS에서 `node@24` LTS, Windows에서 `OpenJS.NodeJS.LTS`를 사용한다. macOS는 keg-only 패키지의 실행 경로를 현재 프로세스와 `~/.zprofile`에 추가한다. Windows LTS 패키지가 다음 메이저로 전환되면 macOS 버전도 함께 갱신한다.
+
+Java 8은 기본 설치에서 제외하며 Java 21을 유지한다. 기존에 설치된 Java 8이나 Node는 자동 삭제하지 않는다.
 
 ## 추천 프로그램
 
@@ -208,41 +234,54 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SkipAiIni
 
 추천 항목을 설치하려면 설정 파일에서 해당 줄의 주석을 해제한다.
 
-## AI 기본 설정
+## AI CLI 설치와 기본 설정
 
-Codex와 Claude Code 기본 설정은 패키지 설치 후 실행한다.
+`dev-init`은 CLI를 설치한다. `ai-comm-init`은 설치된 CLI의 지침과 스킬을 연결한다.
 
-- Codex 설정 저장소: `https://github.com/codestreamkr/chatgpt-codex-init.git`
-- Claude Code 설정 저장소: `https://github.com/codestreamkr/claude-code-init.git`
-- 실행 기준: `codex`, `claude` 명령 존재 여부 확인 후 미설치 상태에서만 실행
-- Windows 실행 위치: `$env:TEMP\codex-init`, `$env:TEMP\claude-init`
-- macOS 실행 위치: `/tmp/codex-init`, `/tmp/claude-init`
+- `agy`: [Google 공식 설치기](https://antigravity.google/docs/cli/install/)로 설치한다. 기존 설치는 `agy update`로 갱신한다.
+- `grok`: [xAI 공식 설치기](https://x.ai/build)로 설치한다. 기존 설치는 `grok update`로 갱신한다.
+- `pi`: [Pi 공식 npm 패키지](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/quickstart.md)를 `--ignore-scripts` 옵션으로 설치한다.
+- Pi 패키지: `@earendil-works/pi-coding-agent@latest`
+- Pi 설치 경로: macOS `~/.local`, Windows `%APPDATA%\npm`
+- 기본 실행: 미설치 CLI는 설치하고 기존 CLI는 갱신한다.
+- `--no-upgrade` / `-NoUpgrade`: 기존 CLI 갱신을 생략한다. 미설치 CLI는 설치한다.
+- `--dry-run` / `-DryRun`: 설치와 갱신 명령만 출력한다.
+- 새 CLI를 설치하면 기존 완료 기록이 있어도 `ai-comm-init`을 다시 실행한다.
+- `--skip-ai-init` / `-SkipAiInit`: CLI는 설치하고 지침과 스킬 연결은 생략한다.
+- 계정 로그인과 API 키 설정은 각 CLI에서 직접 진행한다.
 
-실행 명령은 OS별 스크립트에 포함되어 있다.
+- 공통 설정 저장소: `https://github.com/codestreamkr/ai-comm-init.git`
+- 실행 시점: 최초 설정 또는 새 CLI 설치 후 공통 스킬과 런타임 링크 구성
+- 실행 기준: 설정 저장소의 설치 스크립트가 성공한 경우에만 완료 파일 기록
+- 완료 기록: macOS `${XDG_STATE_HOME:-$HOME/.local/state}/dev-init/ai-comm-init.initialized`, Windows `$env:LOCALAPPDATA\dev-init\ai-comm-init.initialized`
+- 이전 `codex.initialized`, `claude.initialized` 기록은 통합 설정의 완료 기록으로 사용하지 않음
+- 재설정: 통합 완료 파일을 삭제한 뒤 재실행. 실패하면 완료 기록을 남기지 않으므로 재시도 가능
+- Windows 실행 위치: `$env:TEMP\ai-comm-init`
+- macOS 실행 위치: `/tmp/ai-comm-init`
+- 기존 개인 설정은 보존하며 강제 덮어쓰기 옵션을 전달하지 않음
+- 설치 완료 출력의 Claude, Codex 등 개인 설정 병합 안내는 별도 작업
+- macOS는 공통 CLI 실행 경로 `~/.local/bin`을 현재 프로세스와 `~/.zprofile`에 추가
+
+수동 실행 예시:
 
 ```powershell
-git clone https://github.com/codestreamkr/chatgpt-codex-init.git $env:TEMP\codex-init; powershell.exe -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\codex-init\install.ps1
-git clone https://github.com/codestreamkr/claude-code-init.git $env:TEMP\claude-init; powershell.exe -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\claude-init\install.ps1
+git clone https://github.com/codestreamkr/ai-comm-init.git $env:TEMP\ai-comm-init
+if ($LASTEXITCODE -eq 0) {
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\ai-comm-init\install.ps1
+}
 ```
 
 ```bash
-git clone https://github.com/codestreamkr/chatgpt-codex-init.git /tmp/codex-init && bash /tmp/codex-init/install.sh
-git clone https://github.com/codestreamkr/claude-code-init.git /tmp/claude-init && bash /tmp/claude-init/install.sh
+git clone https://github.com/codestreamkr/ai-comm-init.git /tmp/ai-comm-init && bash /tmp/ai-comm-init/install.sh
 ```
 
 ## Claude 인증서 오류 대응
 
-Claude Code CLI는 TLS와 인증서 우회 범위를 설치 명령 1회로 제한한다.
+Claude 설치 파일은 OS의 기본 인증서 검증을 사용해 다운로드한다.
 
-- Windows: TLS 1.2 추가, 기존 인증서 검증 콜백 저장, 설치 실행, `finally`에서 원복
-- Windows 재시도: `claude.ai/install.ps1`, `downloads.claude.ai/claude-code-releases/bootstrap.ps1`, `curl.exe -kfsSL` 순서로 시도
-- macOS: `curl -kfsSL https://claude.ai/install.sh | bash` 실행
-- 범위: Claude Code CLI 설치 명령에만 적용
-
-Windows PowerShell에서 아래 오류가 나면 TLS 연결 실패로 본다.
-
-- 증상: `기본 연결이 닫혔습니다. 보내기에서 예기치 않은 오류가 발생했습니다.`
-- 조치: 최신 스크립트는 TLS 1.2와 직접 다운로드 URL 재시도를 자동 적용함
+- Windows PowerShell 5.1에서는 TLS 1.2를 추가하고 설치 후 원래 프로토콜 설정을 복원
+- 인증서 검증을 끄거나 검증 없는 다운로드로 재시도하지 않음
+- 인증서 오류가 발생하면 시스템 시간과 신뢰 인증서, 회사 프록시의 인증서 설정을 확인한 뒤 재실행
 
 ## 운영 기준
 
@@ -252,6 +291,10 @@ Windows PowerShell에서 아래 오류가 나면 TLS 연결 실패로 본다.
 - 제외: 개인 계정 로그인, SSH 키 생성, 회사 내부 인증, 프로젝트별 환경 변수
 
 ## 이력관리
+
+- 2026-10-16: AI 기본 설정 저장소를 ai-comm-init으로 통합하고 Claude PATH를 영구 설정
+- 2026-10-16: Windows 패키지별 업데이트와 양쪽 Claude CLI 업데이트를 기본 동작으로 적용
+- 2026-10-16: Java 8 제거, Node LTS 적용, Docker cask 이름 갱신, 인증서 검증 복구, AI 초기화 완료 기록 및 실패 처리 수정
 
 - 2026-05-19: macOS Codex와 Claude 설치 여부 확인 추가
 - 2026-05-19: 개발환경 자동화 최초 등록

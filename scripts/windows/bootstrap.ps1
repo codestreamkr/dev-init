@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:AiInitRequired = $false
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Resolve-Path (Join-Path $ScriptDir "..\..")
@@ -109,7 +110,11 @@ function Test-WingetPackageInstalled {
     $ExitCode = $LASTEXITCODE
 
     if ($ExitCode -ne 0) {
-        return $false
+        # APPINSTALLER_CLI_ERROR_NO_APPLICATIONS_FOUND (signed or unsigned HRESULT).
+        if (($ExitCode -band 0xffffffffL) -eq 0x8A150014L) {
+            return $false
+        }
+        throw "winget list failed with exit code ${ExitCode}: $PackageId"
     }
 
     $PackagePattern = "(^|\s)$([regex]::Escape($PackageId))(\s|$)"
@@ -124,46 +129,39 @@ function Invoke-WingetInstall {
 
     if ($DryRun) {
         Write-Host "[dry-run] winget list --id $PackageId --exact"
-        Write-Host "[dry-run] winget install --id $PackageId --exact --silent"
-        return [pscustomobject]@{
-            PackageId = $PackageId
-            Status = "DryRun"
-            ExitCode = 0
+        Write-Host "[dry-run] If missing: winget install --id $PackageId --exact --silent"
+        if (-not $NoUpgrade) {
+            Write-Host "[dry-run] If installed: winget upgrade --id $PackageId --exact --silent --include-unknown"
         }
+        return [pscustomobject]@{ PackageId = $PackageId; Status = "DryRun"; ExitCode = 0 }
     }
 
+    $Operation = "install"
     if (Test-WingetPackageInstalled -PackageId $PackageId) {
-        Write-Host "Already installed: $PackageId"
-        return [pscustomobject]@{
-            PackageId = $PackageId
-            Status = "Skipped"
-            ExitCode = 0
+        if ($NoUpgrade) {
+            Write-Host "Already installed; upgrades disabled: $PackageId"
+            return [pscustomobject]@{ PackageId = $PackageId; Status = "Skipped"; ExitCode = 0 }
         }
+        $Operation = "upgrade"
     }
 
-    $ExitCode = Invoke-WingetCommand -Arguments @(
-        "install",
-        "--id",
-        $PackageId,
-        "--exact",
-        "--silent",
-        "--accept-package-agreements",
-        "--accept-source-agreements"
-    ) -AllowFailure
+    $Arguments = @(
+        $Operation, "--id", $PackageId, "--exact", "--silent",
+        "--accept-package-agreements", "--accept-source-agreements"
+    )
+    if ($Operation -eq "upgrade") { $Arguments += "--include-unknown" }
+    $ExitCode = Invoke-WingetCommand -Arguments $Arguments -AllowFailure
 
+    $Status = "Failed"
     if ($ExitCode -eq 0) {
-        return [pscustomobject]@{
-            PackageId = $PackageId
-            Status = "Installed"
-            ExitCode = 0
-        }
+        if ($Operation -eq "upgrade") { $Status = "Updated" }
+        else { $Status = "Installed" }
     }
-
-    return [pscustomobject]@{
-        PackageId = $PackageId
-        Status = "Failed"
-        ExitCode = $ExitCode
+    elseif ($Operation -eq "upgrade" -and ($ExitCode -band 0xffffffffL) -eq 0x8A15002BL) {
+        # APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE: already current.
+        $Status = "UpToDate"
     }
+    return [pscustomobject]@{ PackageId = $PackageId; Status = $Status; ExitCode = $ExitCode }
 }
 
 function Invoke-WingetPackageInstall {
@@ -173,32 +171,29 @@ function Invoke-WingetPackageInstall {
     )
 
     $Results = foreach ($Package in $Packages) {
-        Invoke-WingetInstall -PackageId $Package
+        try {
+            Invoke-WingetInstall -PackageId $Package
+        }
+        catch {
+            Write-Host "Package operation failed: $Package - $($_.Exception.Message)"
+            [pscustomobject]@{ PackageId = $Package; Status = "Failed"; ExitCode = -1 }
+        }
     }
 
     $Failed = @($Results | Where-Object { $_.Status -eq "Failed" })
 
     if ($Failed.Count -eq 0) {
-        Write-Host "Winget package installation completed."
+        Write-Host "Winget package installation/update completed."
         return
     }
 
-    Write-Host "Winget package installation failed for $($Failed.Count) package(s)."
+    Write-Host "Winget package installation/update failed for $($Failed.Count) package(s)."
 
     foreach ($Item in $Failed) {
         Write-Host "- $($Item.PackageId): exit code $($Item.ExitCode)"
     }
 
-    throw "One or more winget packages failed to install."
-}
-
-function Write-WingetUpgradeNotice {
-    if ($NoUpgrade) {
-        return
-    }
-
-    Write-Host "Skipping winget upgrade --all during bootstrap."
-    Write-Host "Reason: App Installer upgrades require a new PowerShell session before winget can run reliably."
+    throw "One or more winget packages failed to install or update."
 }
 
 function Test-CommandAvailable {
@@ -212,72 +207,100 @@ function Test-CommandAvailable {
 
 function Install-ClaudeCli {
     if (Test-CommandAvailable -Name "claude") {
-        Write-Host "Already installed: Claude CLI"
+        if ($NoUpgrade) {
+            Write-Host "Already installed; upgrades disabled: Claude CLI"
+        }
+        elseif ($DryRun) {
+            Write-Host "[dry-run] claude update"
+        }
+        else {
+            & claude update
+            if ($LASTEXITCODE -ne 0) { throw "Claude CLI update failed with exit code $LASTEXITCODE" }
+        }
         return
     }
 
     if ($DryRun) {
-        Write-Host "[dry-run] Install Claude CLI with TLS 1.2 and temporary certificate validation bypass, then restore settings."
+        Write-Host "[dry-run] Download https://claude.ai/install.ps1 with certificate validation and run it."
         return
     }
 
-    Write-Host "Installing Claude CLI with TLS 1.2 and temporary certificate validation bypass..."
-
     $PreviousSecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol
-    $PreviousCertificateCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
-    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-
     try {
         [System.Net.ServicePointManager]::SecurityProtocol = $PreviousSecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
-
-        $InstallUrls = @(
-            "https://claude.ai/install.ps1",
-            "https://downloads.claude.ai/claude-code-releases/bootstrap.ps1"
-        )
-
-        foreach ($Url in $InstallUrls) {
-            try {
-                Write-Host "Downloading Claude CLI installer: $Url"
-                $Installer = (New-Object System.Net.WebClient).DownloadString($Url)
-                Invoke-Expression $Installer
-                return
-            }
-            catch {
-                Write-Host "Claude CLI installer download failed: $Url"
-                Write-Host $_.Exception.Message
-            }
+        $Installer = Invoke-RestMethod -Uri "https://claude.ai/install.ps1"
+        Invoke-Expression $Installer
+        $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
+        if (-not (Test-CommandAvailable -Name "claude")) {
+            throw "Claude CLI installation did not make claude available."
         }
-
-        $Curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-
-        if ($Curl) {
-            $CurlPath = $Curl.Source
-
-            foreach ($Url in $InstallUrls) {
-                try {
-                    Write-Host "Downloading Claude CLI installer with curl.exe: $Url"
-                    $Installer = & $CurlPath -kfsSL $Url
-
-                    if ($LASTEXITCODE -eq 0 -and $Installer) {
-                        Invoke-Expression ($Installer -join [Environment]::NewLine)
-                        return
-                    }
-
-                    Write-Host "curl.exe failed with exit code $LASTEXITCODE"
-                }
-                catch {
-                    Write-Host "curl.exe Claude CLI installer download failed: $Url"
-                    Write-Host $_.Exception.Message
-                }
-            }
-        }
-
-        throw "Claude CLI installer download failed."
     }
     finally {
         [System.Net.ServicePointManager]::SecurityProtocol = $PreviousSecurityProtocol
-        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $PreviousCertificateCallback
     }
+}
+
+function Install-NativeAiCli {
+    param(
+        [Parameter(Mandatory = $true)][string]$CommandName,
+        [Parameter(Mandatory = $true)][string]$InstallerUrl
+    )
+
+    $env:PATH = "$env:LOCALAPPDATA\agy\bin;$env:USERPROFILE\.local\bin;$env:USERPROFILE\.grok\bin;$env:PATH"
+    if (Test-CommandAvailable -Name $CommandName) {
+        if ($NoUpgrade) {
+            Write-Host "Already installed; upgrades disabled: $CommandName"
+        }
+        elseif ($DryRun) {
+            Write-Host "[dry-run] $CommandName update"
+        }
+        else {
+            & $CommandName update
+            if ($LASTEXITCODE -ne 0) { throw "$CommandName update failed with exit code $LASTEXITCODE" }
+        }
+        return
+    }
+    if ($DryRun) {
+        Write-Host "[dry-run] Download $InstallerUrl and run the native installer."
+        return
+    }
+
+    $InstallerPath = Join-Path $env:TEMP ("dev-init-" + [guid]::NewGuid() + ".ps1")
+    $PreviousSecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol
+    try {
+        [System.Net.ServicePointManager]::SecurityProtocol = $PreviousSecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
+        $Installer = Invoke-RestMethod -Uri $InstallerUrl
+        Set-Content -LiteralPath $InstallerPath -Value $Installer -Encoding UTF8
+        Invoke-PowerShellScript -ScriptPath $InstallerPath
+        $env:PATH = "$env:LOCALAPPDATA\agy\bin;$env:USERPROFILE\.local\bin;$env:USERPROFILE\.grok\bin;$env:PATH"
+        if (-not (Test-CommandAvailable -Name $CommandName)) {
+            throw "$CommandName installation did not make the command available."
+        }
+        $script:AiInitRequired = $true
+    }
+    finally {
+        [System.Net.ServicePointManager]::SecurityProtocol = $PreviousSecurityProtocol
+        if (Test-Path -LiteralPath $InstallerPath) { Remove-Item -LiteralPath $InstallerPath }
+    }
+}
+
+function Install-PiCli {
+    $AlreadyInstalled = Test-CommandAvailable -Name "pi"
+    if ($AlreadyInstalled -and $NoUpgrade) {
+        Write-Host "Already installed; upgrades disabled: Pi CLI"
+        return
+    }
+    $NpmPrefix = Join-Path $env:APPDATA "npm"
+    if ($DryRun) {
+        Write-Host "[dry-run] npm.cmd install --global --prefix $NpmPrefix --ignore-scripts @earendil-works/pi-coding-agent@latest"
+        return
+    }
+
+    & npm.cmd install --global --prefix $NpmPrefix --ignore-scripts @earendil-works/pi-coding-agent@latest
+    if ($LASTEXITCODE -ne 0) { throw "Pi CLI installation/update failed with exit code $LASTEXITCODE" }
+    $env:PATH = "$NpmPrefix;$env:PATH"
+    if (-not (Test-CommandAvailable -Name "pi")) { throw "Pi CLI installation did not make pi available." }
+    if (-not $AlreadyInstalled) { $script:AiInitRequired = $true }
 }
 
 function Invoke-GitClone {
@@ -296,6 +319,9 @@ function Invoke-GitClone {
     }
 
     & $Git clone $Repository $Destination
+    if ($LASTEXITCODE -ne 0) {
+        throw "git clone failed with exit code ${LASTEXITCODE}: $Repository"
+    }
 }
 
 function Invoke-PowerShellScript {
@@ -338,7 +364,10 @@ function Invoke-AiInitRepository {
         [string]$Destination
     )
 
-    if (Test-CommandAvailable -Name $CommandName) {
+    $StateDir = Join-Path $env:LOCALAPPDATA "dev-init"
+    $Marker = Join-Path $StateDir "$CommandName.initialized"
+
+    if ((Test-Path $Marker) -and -not $script:AiInitRequired) {
         Write-Host "Already initialized: $CommandName"
         return
     }
@@ -351,6 +380,8 @@ function Invoke-AiInitRepository {
 
     Invoke-GitClone -Repository $Repository -Destination $Destination
     Invoke-PowerShellScript -ScriptPath (Join-Path $Destination "install.ps1")
+    New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
+    New-Item -ItemType File -Force -Path $Marker | Out-Null
 }
 
 function Invoke-AiInit {
@@ -358,18 +389,12 @@ function Invoke-AiInit {
         return
     }
 
-    $CodexDir = Join-Path $env:TEMP "codex-init"
-    $ClaudeDir = Join-Path $env:TEMP "claude-init"
+    $AiInitDir = Join-Path $env:TEMP "ai-comm-init"
 
     Invoke-AiInitRepository `
-        -CommandName "codex" `
-        -Repository "https://github.com/codestreamkr/chatgpt-codex-init.git" `
-        -Destination $CodexDir
-
-    Invoke-AiInitRepository `
-        -CommandName "claude" `
-        -Repository "https://github.com/codestreamkr/claude-code-init.git" `
-        -Destination $ClaudeDir
+        -CommandName "ai-comm-init" `
+        -Repository "https://github.com/codestreamkr/ai-comm-init.git" `
+        -Destination $AiInitDir
 }
 
 function Main {
@@ -378,11 +403,16 @@ function Main {
 
     $Packages = Get-WingetPackages
 
-    Write-WingetUpgradeNotice
-
     Invoke-WingetPackageInstall -Packages $Packages
 
+    # Refresh user and machine PATH after winget installs Node and other CLIs.
+    if (-not $DryRun) {
+        $env:PATH = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") + ";" + $env:PATH
+    }
     Install-ClaudeCli
+    Install-NativeAiCli -CommandName "agy" -InstallerUrl "https://antigravity.google/cli/install.ps1"
+    Install-NativeAiCli -CommandName "grok" -InstallerUrl "https://x.ai/cli/install.ps1"
+    Install-PiCli
     Invoke-AiInit
 }
 

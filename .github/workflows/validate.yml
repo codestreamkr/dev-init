@@ -31,3 +31,15 @@ jobs:
         run: |
           test -s config/brew/Brewfile
           test -s config/winget/packages.txt
+
+      - name: Test bootstrap control flow
+        run: python3 -m unittest discover -s tests -v
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test Windows PowerShell 5.1 bootstrap control flow
+        shell: powershell
+        run: .\tests\windows.ps1

@@ -177,6 +177,9 @@ function Invoke-RepositoryInstall {
     }
 
     & $Git clone $RepositoryUrl $TargetDir
+    if ($LASTEXITCODE -ne 0) {
+        throw "git clone failed with exit code ${LASTEXITCODE}: $RepositoryUrl"
+    }
 
     $Install = Join-Path $TargetDir "install.ps1"
     Invoke-PowerShellScript -ScriptPath $Install -Parameters $InstallParameters
@@ -184,6 +187,14 @@ function Invoke-RepositoryInstall {
 
 function Main {
     Test-Windows
+
+    if ($DryRun) {
+        if (-not (Get-GitCommand)) {
+            Write-Host "[dry-run] winget install --id Git.Git --exact --silent"
+        }
+        Invoke-RepositoryInstall -Git "git"
+        return
+    }
 
     $Git = Ensure-Git
     Invoke-RepositoryInstall -Git $Git

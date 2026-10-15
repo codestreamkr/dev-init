@@ -1,20 +1,25 @@
-tap "homebrew/bundle"
-tap "homebrew/cask"
-
 brew "git"
 brew "gh"
-brew "node"
-brew "openjdk@8"
+brew "mas"
+brew "node@24"
 brew "openjdk@21"
 brew "python@3.14"
 
 cask "intellij-idea"
+cask "jetbrains-toolbox"
 cask "datagrip"
-cask "docker"
+cask "android-studio"
+cask "docker-desktop"
 cask "maccy"
 cask "visual-studio-code"
 cask "google-chrome"
+cask "google-drive"
+cask "logi-options+"
+cask "discord"
+cask "cloudflare-warp"
 cask "codex"
+
+mas "KakaoTalk", id: 869223134
 
 # Recommended packages. Uncomment only what the team uses.
 # brew "jq"

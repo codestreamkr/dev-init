@@ -4,15 +4,22 @@
 Git.Git
 GitHub.cli
 OpenJS.NodeJS.LTS
-EclipseAdoptium.Temurin.8.JDK
 Microsoft.OpenJDK.21
 Python.Python.3.14
 JetBrains.IntelliJIDEA.Ultimate
 JetBrains.DataGrip
+JetBrains.Toolbox
+Google.AndroidStudio
 Docker.DockerDesktop
 Ditto.Ditto
 Microsoft.VisualStudioCode
 Google.Chrome
+Google.GoogleDrive
+NAVER.MYBOX
+Kakao.KakaoTalk
+Logitech.OptionsPlus
+Discord.Discord
+Cloudflare.Warp
 Microsoft.PowerShell
 OpenAI.Codex
 
